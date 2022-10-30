@@ -296,6 +296,7 @@ def build_all():
         ext_modules_all = []
 
     print("building")
+    os.makedirs("build", exist_ok=True)
     build_ok = False
     for name, ext_modules in [("all", ext_modules_all)]:
         print("build with", repr(name))
