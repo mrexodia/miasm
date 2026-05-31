@@ -33,6 +33,7 @@ from builtins import zip
 from builtins import range
 import warnings
 import itertools
+import weakref
 from builtins import int as int_types
 from functools import cmp_to_key, total_ordering
 from future.utils import viewitems
@@ -467,10 +468,13 @@ class Expr(object):
 
     "Parent class for Miasm Expressions"
 
-    __slots__ = ["_hash", "_repr", "_size"]
+    # __weakref__ makes Expr instances weak-referenceable so args2expr (the singleton
+    # intern table) can use weak references -- transient expressions are then garbage
+    # collected instead of accumulating forever (bounds memory on long analyses).
+    __slots__ = ["_hash", "_repr", "_size", "__weakref__"]
 
-    args2expr = {}
-    canon_exprs = set()
+    args2expr = weakref.WeakValueDictionary()
+    canon_exprs = weakref.WeakSet()
     use_singleton = True
 
     def set_size(self, _):
@@ -749,7 +753,7 @@ class ExprInt(Expr):
      - Constant 0x12345678 on 32bits
      """
 
-    __slots__ = Expr.__slots__ + ["_arg"]
+    __slots__ = ["_arg"]
 
 
     def __init__(self, arg, size):
@@ -823,7 +827,7 @@ class ExprId(Expr):
      - variable v1
      """
 
-    __slots__ = Expr.__slots__ + ["_name"]
+    __slots__ = ["_name"]
 
     def __init__(self, name, size=None):
         """Create an identifier
@@ -881,7 +885,7 @@ class ExprLoc(Expr):
     """An ExprLoc represent a Label in Miasm IR.
     """
 
-    __slots__ = Expr.__slots__ + ["_loc_key"]
+    __slots__ = ["_loc_key"]
 
     def __init__(self, loc_key, size):
         """Create an identifier
@@ -936,7 +940,7 @@ class ExprAssign(Expr):
      - var1 <- 2
     """
 
-    __slots__ = Expr.__slots__ + ["_dst", "_src"]
+    __slots__ = ["_dst", "_src"]
 
     def __init__(self, dst, src):
         """Create an ExprAssign for dst <- src
@@ -1037,7 +1041,7 @@ class ExprCond(Expr):
      - if (cond) then ... else ...
     """
 
-    __slots__ = Expr.__slots__ + ["_cond", "_src1", "_src2"]
+    __slots__ = ["_cond", "_src1", "_src2"]
 
     def __init__(self, cond, src1, src2):
         """Create an ExprCond
@@ -1109,7 +1113,7 @@ class ExprMem(Expr):
      - Memory write
     """
 
-    __slots__ = Expr.__slots__ + ["_ptr"]
+    __slots__ = ["_ptr"]
 
     def __init__(self, ptr, size=None):
         """Create an ExprMem
@@ -1197,7 +1201,7 @@ class ExprOp(Expr):
      - parity bit(var1)
     """
 
-    __slots__ = Expr.__slots__ + ["_op", "_args"]
+    __slots__ = ["_op", "_args"]
 
     def __init__(self, op, *args):
         """Create an ExprOp
@@ -1355,7 +1359,7 @@ class ExprOp(Expr):
 
 class ExprSlice(Expr):
 
-    __slots__ = Expr.__slots__ + ["_arg", "_start", "_stop"]
+    __slots__ = ["_arg", "_start", "_stop"]
 
     def __init__(self, arg, start, stop):
 
@@ -1435,7 +1439,7 @@ class ExprCompose(Expr):
     Compose is like a hamburger. It concatenate Expressions
     """
 
-    __slots__ = Expr.__slots__ + ["_args"]
+    __slots__ = ["_args"]
 
     def __init__(self, *args):
         """Create an ExprCompose
