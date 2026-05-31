@@ -265,6 +265,16 @@ class MiasmJitSdist(sdist):
 
 
 class MiasmJitBuildExt(build_ext):
+    def build_extensions(self):
+        if is_mac:
+            linker_so = getattr(self.compiler, "linker_so", None)
+            if isinstance(linker_so, list):
+                self.compiler.linker_so = [
+                    "-dynamiclib" if arg == "-bundle" else arg
+                    for arg in linker_so
+                ]
+        super().build_extensions()
+
     def run(self):
         super().run()
         if is_win and self.extensions:

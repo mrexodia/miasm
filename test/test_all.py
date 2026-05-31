@@ -765,7 +765,7 @@ dse_crackme_out = Example.get_sample("dse_crackme")
 for strategy in ["code-cov", "branch-cov", "path-cov"]:
     testset += ExampleSymbolExec(["dse_crackme.py", dse_crackme_out,
                                   "--strategy", strategy],
-                                 tags=[TAGS["z3"]])
+                                 tags=[TAGS["z3"], TAGS["gcc"]])
     testset += ExampleSymbolExec(["dse_strategies.py",
                                   Example.get_sample("simple_test.bin"),
                                   strategy],
