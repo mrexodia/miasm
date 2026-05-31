@@ -133,3 +133,31 @@ jobs:
     - name: Windows tests
       run: cd test; python -W error test_all.py -t gcc && git ls-files -o --exclude-standard
       shell: bash
+
+  macos-aarch64:
+    runs-on: macos-26
+    strategy:
+      matrix:
+        python-version: ['3.13']
+
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v3
+
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Show host architecture
+      run: python -c "import platform; print(platform.platform()); print(platform.machine())"
+
+    - name: Update pip
+      run: python -m pip install pip --upgrade
+
+    - name: Install Miasm
+      uses: ./.github/actions/install
+
+    - name: macOS tests
+      run: cd test; python -W error test_all.py -t gcc,llvm,qemu,long && git ls-files -o --exclude-standard
