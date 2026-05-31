@@ -53,7 +53,7 @@ all = [
 ]
 
 [dependency-groups]
-test = ["parameterized~=0.8.1"]
+dev = ["parameterized~=0.8.1"]
 
 [project.urls]
 Homepage = "http://miasm.re"

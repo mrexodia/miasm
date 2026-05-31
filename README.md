@@ -561,7 +561,7 @@ Development/test dependencies are not published as package extras. They live in
 
 | Group | Dependency | Enables | Code using it |
 | --- | --- | --- | --- |
-| `test` | `parameterized~=0.8.1` | Test runner parameterization | `test/test_all.py` |
+| `dev` | `parameterized~=0.8.1` | Test runner parameterization | `test/test_all.py` |
 
 Configuration
 -------------
@@ -583,7 +583,7 @@ Optional dependencies can be installed with extras, for example:
 ```pycon
 $ python -m pip install '.[cparser,z3,llvm]'
 $ python -m pip install '.[all]'
-$ python -m pip install --group test '.[all]'  # local development/test runs
+$ python -m pip install --group dev '.[all]'  # local development/test runs
 ```
 
 If something goes wrong during native jitter compilation, Miasm will skip the
@@ -604,11 +604,13 @@ Testing
 =======
 
 Miasm comes with a set of regression tests. Test-only dependencies are declared
-in the `test` dependency group and are not installed by default. To run all
-tests:
+in the `dev` dependency group. `uv sync` installs this group by default; use
+`--extra all` when you also want all optional runtime backends for full test
+coverage. With pip, install the group explicitly.
 
 ```pycon
-python -m pip install --group test '.[all]'
+uv sync --extra all
+# or: python -m pip install --group dev '.[all]'
 cd miasm_directory/test
 
 # Run tests using our own test runner
