@@ -39,15 +39,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-jit = ["miasm-jit==0.1.5"]
 cparser = ["pycparser>=2.17"]
 z3 = ["z3-solver==4.16.0.0"]
-llvm = ["miasm-jit==0.1.5", "llvmlite==0.44.0"]
+llvm = ["llvmlite==0.44.0"]
 graph = ["graphviz"]
 crypto = ["pycryptodome"]
 test = ["parameterized~=0.8.1"]
 all = [
-  "miasm-jit==0.1.5",
   "pycparser>=2.17",
   "z3-solver==4.16.0.0",
   "llvmlite==0.44.0",
@@ -67,7 +65,7 @@ include-package-data = false
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["miasm*"]
-exclude = ["miasm-jit*", "test*", "example*", "doc*"]
+exclude = ["test*", "example*", "doc*"]
 namespaces = false
 
 [tool.setuptools.package-data]

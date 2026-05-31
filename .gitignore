@@ -2,7 +2,6 @@
 build/
 dist/
 sdists/
-.miasm-wheels/
 # Emacs files
 *~
 # Compiled python files

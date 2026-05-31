@@ -32,9 +32,7 @@ COPY LICENSE /opt/miasm/LICENSE
 COPY pyproject.toml /opt/miasm/pyproject.toml
 COPY setup.py /opt/miasm/setup.py
 COPY miasm /opt/miasm/miasm
-COPY miasm-jit /opt/miasm/miasm-jit
-RUN pip3 wheel ./miasm-jit --no-deps -w /tmp/miasm-wheels \
-    && pip3 install --find-links /tmp/miasm-wheels '.[cparser,z3,llvm,test]'
+RUN MIASM_REQUIRE_JIT=1 pip3 install '.[cparser,z3,llvm,test]'
 
 # Get everything else
 COPY . /opt/miasm

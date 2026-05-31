@@ -535,9 +535,10 @@ Miasm uses:
 * pyparsing >= 2.4.1
 * optionally pycparser >= 2.17 (`pip install miasm[cparser]`)
 
-The native jitter components are distributed separately as `miasm-jit` and can
-be installed with `pip install miasm[jit]`. Building `miasm-jit` from source
-requires Python development headers and a C compiler.
+Native jitter components are built when the local build environment supports
+them. If native extension compilation fails, installation continues and the
+jitter-dependent features are unavailable. Set `MIASM_REQUIRE_JIT=1` when
+building release wheels or when native jitter support must be present.
 
 To enable non-Python JIT backends, one of the following is mandatory:
 * GCC
@@ -568,8 +569,9 @@ Optional dependencies can be installed with extras, for example:
 $ python -m pip install '.[cparser,z3,llvm]'
 ```
 
-The base `miasm` package is pure Python. Native jitter install failures are
-isolated to the `miasm-jit` package.
+If something goes wrong during native jitter compilation, Miasm will skip the
+failing extension and keep the rest of the package installable. Set
+`MIASM_REQUIRE_JIT=1` to make native extension failures abort the build.
 
 Windows & IDA
 -------------

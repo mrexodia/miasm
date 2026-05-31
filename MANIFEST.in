@@ -1,3 +1,2 @@
 include LICENSE README.md CHANGELOG.md
 recursive-include miasm *.c *.h
-prune miasm-jit
