@@ -532,8 +532,8 @@ Software requirements
 Miasm uses:
 
 * Python >= 3.10
+* future
 * pyparsing >= 2.4.1
-* optionally pycparser >= 2.17 (`pip install miasm[cparser]`)
 
 Native jitter components are built when the local build environment supports
 them. If native extension compilation fails, installation continues and the
@@ -545,8 +545,17 @@ To enable non-Python JIT backends, one of the following is mandatory:
 * Clang
 * LLVM with Numba llvmlite (`pip install miasm[llvm]`), see below
 
-Optional features can also use:
-* Z3, the [Theorem Prover](https://github.com/Z3Prover/z3) (`pip install miasm[z3]`)
+Optional Python features are grouped as extras:
+
+| Extra | Dependency | Enables | Code using it |
+| --- | --- | --- | --- |
+| `cparser` | `pycparser>=2.17` | C type parsing and C-like expression access helpers | `miasm/core/ctypesmngr.py`, `miasm/core/objc.py` |
+| `z3` | `z3-solver==4.16.0.0` | Z3 expression translation, solver-backed dependency graph, DSE constraints, and range tests | `miasm/ir/translators/z3_ir.py`, `miasm/analysis/depgraph.py`, `miasm/analysis/dse.py` |
+| `llvm` | `llvmlite==0.44.0` | LLVM JIT backend and LLVM IR export | `miasm/jitter/jitcore_llvm.py`, `miasm/jitter/llvmconvert.py`, `example/expression/export_llvm.py` |
+| `graph` | `graphviz` | Python Graphviz object export from Miasm graphs | `miasm/core/graph.py` (`DiGraph.graphviz`) |
+| `crypto` | `pycryptodome` | Windows API crypto/hash emulation | `miasm/os_dep/win_api_x86_32.py` |
+| `test` | `parameterized~=0.8.1` | Test runner parameterization; development/CI only | `test/test_all.py` |
+| `all` | runtime extras above except `test` | All optional runtime features | Convenience alias for users |
 
 Configuration
 -------------
@@ -567,6 +576,8 @@ $ python -m pip install .
 Optional dependencies can be installed with extras, for example:
 ```pycon
 $ python -m pip install '.[cparser,z3,llvm]'
+$ python -m pip install '.[all]'
+$ python -m pip install '.[all,test]'  # local development/test runs
 ```
 
 If something goes wrong during native jitter compilation, Miasm will skip the
@@ -586,9 +597,11 @@ All features excepting JITter related ones will be available. For a more complet
 Testing
 =======
 
-Miasm comes with a set of regression tests. To run all of them:
+Miasm comes with a set of regression tests. The `test` extra is intended for
+local development and CI; it is not included in `miasm[all]`. To run all tests:
 
 ```pycon
+python -m pip install '.[all,test]'
 cd miasm_directory/test
 
 # Run tests using our own test runner

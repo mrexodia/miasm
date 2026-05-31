@@ -51,7 +51,6 @@ all = [
   "llvmlite==0.44.0",
   "graphviz",
   "pycryptodome",
-  "parameterized~=0.8.1",
 ]
 
 [project.urls]
