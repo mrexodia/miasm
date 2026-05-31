@@ -5331,6 +5331,117 @@ def fxrstor(_ir, _instr, _dst):
     return [], []
 
 
+# --- System / privileged instructions modelled as intrinsics or NOPs --------------
+# These have no effect on the recovered control flow; they are implemented so that
+# lifting does not abort (NotImplementedError) on driver / hypervisor code. Data
+# effects are represented by opaque 'x86_*' intrinsics where a result is produced.
+
+def invlpg(_ir, _instr, _src):
+    # Invalidate TLB entry: no architectural register/flag effect.
+    return [], []
+
+
+def verw(_ir, _instr, src):
+    # Verify segment for writing: sets ZF. Model ZF as an opaque 1-bit intrinsic.
+    return [m2_expr.ExprAssign(zf, m2_expr.ExprOp('x86_verw', src)[0:1])], []
+
+
+def incsspq(_ir, _instr, _src):
+    # CET: increment shadow stack pointer. No effect on the tracked GP state.
+    return [], []
+
+
+def rdsspq(_ir, _instr, dst):
+    # CET: read shadow stack pointer into dst.
+    return [m2_expr.ExprAssign(dst, m2_expr.ExprOp('x86_rdssp', dst))], []
+
+
+def int3(_ir, _instr):
+    # Breakpoint: modelled as a NOP so exploration continues.
+    return [], []
+
+
+def rdtscp(_ir, _instr):
+    e = []
+    e.append(m2_expr.ExprAssign(tsc, tsc + m2_expr.ExprInt(1, 64)))
+    e.append(m2_expr.ExprAssign(mRAX[32], tsc[0:32]))
+    e.append(m2_expr.ExprAssign(mRDX[32], tsc[32:64]))
+    e.append(m2_expr.ExprAssign(
+        mRCX[32], m2_expr.ExprOp('x86_rdtscp_aux', m2_expr.ExprInt(0, 32))))
+    return e, []
+
+
+def sgdt(ir, _instr, dst):
+    # Store GDT register to memory; emit an opaque descriptor blob (cf. sidt).
+    if not isinstance(dst, m2_expr.ExprMem):
+        return [], []
+    ptr = dst.ptr
+    e = [
+        m2_expr.ExprAssign(ir.ExprMem(ptr, 32),
+                           m2_expr.ExprOp('x86_sgdt', m2_expr.ExprInt(0, 32))),
+        m2_expr.ExprAssign(ir.ExprMem(ptr + m2_expr.ExprInt(4, ptr.size), 16),
+                           m2_expr.ExprOp('x86_sgdt', m2_expr.ExprInt(1, 16))),
+    ]
+    return e, []
+
+
+def _vmx_status(tag, *args):
+    # VMX instructions report success/failure via CF/ZF (VMfail). These may gate
+    # meaningful VM/anti-tamper checks, so model the status as OPAQUE 1-bit intrinsics
+    # rather than a fixed success -- a branch on them then forks and both outcomes are
+    # explored, instead of silently committing to one path.
+    ctx = args if args else (m2_expr.ExprInt(0, 1),)
+    return [
+        m2_expr.ExprAssign(cf, m2_expr.ExprOp('x86_%s_cf' % tag, *ctx)[0:1]),
+        m2_expr.ExprAssign(zf, m2_expr.ExprOp('x86_%s_zf' % tag, *ctx)[0:1]),
+    ]
+
+
+def vmread(_ir, _instr, dst, src):
+    return [m2_expr.ExprAssign(dst, m2_expr.ExprOp('x86_vmread', src))] \
+        + _vmx_status('vmread', src), []
+
+
+def vmwrite(_ir, _instr, dst, src):
+    return _vmx_status('vmwrite', dst, src), []
+
+
+def vmx_mem(_ir, _instr, src):
+    # vmclear / vmptrld / vmxon (single memory operand).
+    return _vmx_status('vmx', src), []
+
+
+def vmx_noarg(_ir, _instr):
+    # vmlaunch / vmxoff (no operand): status is opaque -> branch on VMfail forks.
+    return _vmx_status('vmx'), []
+
+
+def sys_nop(_ir, _instr, *args):
+    # Privileged instructions that load a system register / manage caches / segment
+    # bases and have NO effect on the tracked GP registers or flags (lgdt, lidt, lldt,
+    # ltr, lmsw, clts, swapgs, wbinvd, invd, clac, stac, pause, clflush, wr{fs,gs}base,
+    # wrpkru, xsetbv). Modelled as NOPs so lifting/exploration continues.
+    return [], []
+
+
+def rdbase(_ir, _instr, dst):
+    # rdfsbase / rdgsbase: read segment base into dst -> opaque intrinsic (NOT a NOP, so
+    # a stale value can't mis-resolve a later jump that uses dst).
+    return [m2_expr.ExprAssign(dst, m2_expr.ExprOp('x86_rdbase', dst))], []
+
+
+def xgetbv(_ir, _instr):
+    return [
+        m2_expr.ExprAssign(mRAX[32], m2_expr.ExprOp('x86_xgetbv', m2_expr.ExprInt(0, 32))),
+        m2_expr.ExprAssign(mRDX[32], m2_expr.ExprOp('x86_xgetbv', m2_expr.ExprInt(1, 32))),
+    ], []
+
+
+def rdpkru(_ir, _instr):
+    return [m2_expr.ExprAssign(mRAX[32],
+                               m2_expr.ExprOp('x86_rdpkru', m2_expr.ExprInt(0, 32)))], []
+
+
 mnemo_func = {'mov': mov,
               'xchg': xchg,
               'movzx': movzx,
@@ -5961,6 +6072,42 @@ mnemo_func = {'mov': mov,
               "endbr32": endbr32,
               "fxsave": fxsave,
               "fxrstor": fxrstor,
+              "invlpg": invlpg,
+              "verw": verw,
+              "incsspq": incsspq,
+              "rdsspq": rdsspq,
+              "int3": int3,
+              "rdtscp": rdtscp,
+              "sgdt": sgdt,
+              "vmread": vmread,
+              "vmwrite": vmwrite,
+              "vmclear": vmx_mem,
+              "vmptrld": vmx_mem,
+              "vmxon": vmx_mem,
+              "vmlaunch": vmx_noarg,
+              "vmresume": vmx_noarg,
+              "vmxoff": vmx_noarg,
+              "lgdt": sys_nop,
+              "lidt": sys_nop,
+              "lldt": sys_nop,
+              "ltr": sys_nop,
+              "lmsw": sys_nop,
+              "clts": sys_nop,
+              "swapgs": sys_nop,
+              "wbinvd": sys_nop,
+              "invd": sys_nop,
+              "clac": sys_nop,
+              "stac": sys_nop,
+              "pause": sys_nop,
+              "clflush": sys_nop,
+              "wrgsbase": sys_nop,
+              "wrfsbase": sys_nop,
+              "wrpkru": sys_nop,
+              "xsetbv": sys_nop,
+              "rdfsbase": rdbase,
+              "rdgsbase": rdbase,
+              "xgetbv": xgetbv,
+              "rdpkru": rdpkru,
               }
 
 

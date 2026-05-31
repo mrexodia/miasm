@@ -3522,6 +3522,10 @@ addop("btr", [bs8(0x0f), bs8(0xba)] + rmmod(d6) + [u08])
 addop("bts", [bs8(0x0f), bs8(0xab)] + rmmod(rmreg), [rm_arg, rmreg])
 addop("bts", [bs8(0x0f), bs8(0xba)] + rmmod(d5) + [u08])
 
+# VT-x VMREAD r/m, reg (0f 78 /r) and VMWRITE reg, r/m (0f 79 /r)
+addop("vmread", [bs8(0x0f), bs8(0x78)] + rmmod(rmreg), [rm_arg, rmreg])
+addop("vmwrite", [bs8(0x0f), bs8(0x79)] + rmmod(rmreg), [rmreg, rm_arg])
+
 addop("call", [bs8(0xe8), rel_off])
 addop("call", [bs8(0xff), stk] + rmmod(d2))
 addop("call", [bs8(0xff), stk] + rmmod(d3, rm_arg_x=rm_mem_far, modrm=mod_mem))
