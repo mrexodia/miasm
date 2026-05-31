@@ -5,7 +5,7 @@ set -euo pipefail
 python -m pip install codespell
 
 # install
-MIASM_REQUIRE_JIT=1 python -m pip install '.[cparser,z3,llvm,test]'
+MIASM_REQUIRE_JIT=1 python -m pip install --group test '.[cparser,z3,llvm]'
 
 # extended tests
 git clone https://github.com/cea-sec/miasm-extended-tests

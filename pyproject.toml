@@ -44,7 +44,6 @@ z3 = ["z3-solver==4.16.0.0"]
 llvm = ["llvmlite==0.44.0"]
 graph = ["graphviz"]
 crypto = ["pycryptodome"]
-test = ["parameterized~=0.8.1"]
 all = [
   "pycparser>=2.17",
   "z3-solver==4.16.0.0",
@@ -52,6 +51,9 @@ all = [
   "graphviz",
   "pycryptodome",
 ]
+
+[dependency-groups]
+test = ["parameterized~=0.8.1"]
 
 [project.urls]
 Homepage = "http://miasm.re"

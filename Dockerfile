@@ -32,7 +32,8 @@ COPY LICENSE /opt/miasm/LICENSE
 COPY pyproject.toml /opt/miasm/pyproject.toml
 COPY setup.py /opt/miasm/setup.py
 COPY miasm /opt/miasm/miasm
-RUN MIASM_REQUIRE_JIT=1 pip3 install '.[cparser,z3,llvm,test]'
+RUN pip3 install --upgrade pip \
+    && MIASM_REQUIRE_JIT=1 pip3 install --group test '.[cparser,z3,llvm]'
 
 # Get everything else
 COPY . /opt/miasm

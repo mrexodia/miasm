@@ -554,8 +554,14 @@ Optional Python features are grouped as extras:
 | `llvm` | `llvmlite==0.44.0` | LLVM JIT backend and LLVM IR export | `miasm/jitter/jitcore_llvm.py`, `miasm/jitter/llvmconvert.py`, `example/expression/export_llvm.py` |
 | `graph` | `graphviz` | Python Graphviz object export from Miasm graphs | `miasm/core/graph.py` (`DiGraph.graphviz`) |
 | `crypto` | `pycryptodome` | Windows API crypto/hash emulation | `miasm/os_dep/win_api_x86_32.py` |
-| `test` | `parameterized~=0.8.1` | Test runner parameterization; development/CI only | `test/test_all.py` |
-| `all` | runtime extras above except `test` | All optional runtime features | Convenience alias for users |
+| `all` | runtime extras above | All optional runtime features | Convenience alias for users |
+
+Development/test dependencies are not published as package extras. They live in
+`[dependency-groups]` in `pyproject.toml`:
+
+| Group | Dependency | Enables | Code using it |
+| --- | --- | --- | --- |
+| `test` | `parameterized~=0.8.1` | Test runner parameterization | `test/test_all.py` |
 
 Configuration
 -------------
@@ -577,7 +583,7 @@ Optional dependencies can be installed with extras, for example:
 ```pycon
 $ python -m pip install '.[cparser,z3,llvm]'
 $ python -m pip install '.[all]'
-$ python -m pip install '.[all,test]'  # local development/test runs
+$ python -m pip install --group test '.[all]'  # local development/test runs
 ```
 
 If something goes wrong during native jitter compilation, Miasm will skip the
@@ -597,11 +603,12 @@ All features excepting JITter related ones will be available. For a more complet
 Testing
 =======
 
-Miasm comes with a set of regression tests. The `test` extra is intended for
-local development and CI; it is not included in `miasm[all]`. To run all tests:
+Miasm comes with a set of regression tests. Test-only dependencies are declared
+in the `test` dependency group and are not installed by default. To run all
+tests:
 
 ```pycon
-python -m pip install '.[all,test]'
+python -m pip install --group test '.[all]'
 cd miasm_directory/test
 
 # Run tests using our own test runner
