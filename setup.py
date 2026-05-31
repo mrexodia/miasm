@@ -50,6 +50,8 @@ def win_find_clang_path():
         with win_get_llvm_reg() as rkey:
             return winreg.QueryValueEx(rkey, None)[0]
     except FileNotFoundError:
+        # Visual Studio ships with an optional Clang distribution; detect that
+        # when the standalone LLVM registry key is not present.
         clang_cl = which("clang-cl")
         if clang_cl is None:
             return None
@@ -70,6 +72,10 @@ def win_get_clang_version(clang_path):
 
 
 def win_use_clang():
+    # To force setuptools to use clang-cl, copy the LLVM tools into a
+    # temporary directory as cl.exe/link.exe and put that directory first in
+    # PATH. Using the build directory would avoid a tempdir, but setuptools
+    # does not expose a reliable build path before build_ext starts.
     clang_path = win_find_clang_path()
     if clang_path is None:
         return False
@@ -80,6 +86,10 @@ def win_use_clang():
     tmpdir = tempfile.mkdtemp(prefix="llvm")
     try:
         copyfile(os.path.join(clang_path, "bin", "clang-cl.exe"), os.path.join(tmpdir, "cl.exe"))
+        # When forcing clang, put lld-link.exe first as link.exe so setuptools
+        # uses the LLVM-compatible linker. LLVM >= 14.0.0 is required because
+        # earlier versions do not support MSVC's /LTCG flag and fail during
+        # linking.
         if clang_version[0] < 14:
             rmtree(tmpdir)
             return False
@@ -88,6 +98,8 @@ def win_use_clang():
         rmtree(tmpdir)
         return False
 
+    # Add the temporary directory at the front of PATH and clean it up when the
+    # build process exits.
     os.environ["PATH"] = "%s;%s" % (tmpdir, os.environ["PATH"])
     atexit.register(lambda dir_: rmtree(dir_), tmpdir)
     print(
@@ -181,8 +193,9 @@ def configured_ext_modules():
 
     if is_win:
         if is_64bit or which("cl") is None:
-            # 64-bit builds require clang for uint128_t support. 32-bit builds
-            # can use MSVC, but still try clang if cl.exe is missing.
+            # 64-bit builds require clang for uint128_t support. In 32-bit mode
+            # the ABI does not use uint128_t, so MSVC is fine; still try clang
+            # there if cl.exe is missing from PATH.
             win_force_clang = win_use_clang()
             if is_64bit and not win_force_clang:
                 BUILD_WARNINGS.append(
@@ -223,6 +236,8 @@ def configured_ext_modules():
     ext_modules = make_ext_modules(optional=not require_jit)
 
     if is_win:
+        # Force setuptools to use the compiler/linker already selected in PATH.
+        # https://docs.python.org/3/distutils/apiref.html#module-distutils.msvccompiler
         os.environ["MSSdk"] = "1"
         os.environ["DISTUTILS_USE_SDK"] = "1"
         extra_compile_args = ["-D_CRT_SECURE_NO_WARNINGS"]
@@ -302,6 +317,8 @@ class MiasmBuildExt(build_ext):
         for lib in libs:
             filename = os.path.basename(lib)
             dst_dir = os.path.join(self.build_lib, "miasm", "jitter")
+            # Windows import libraries are named after the built extension,
+            # e.g. VmMngr.cp313-win_amd64.lib.
             if not any(
                 fnmatch.fnmatch(filename, pattern)
                 for pattern in ["VmMngr.*lib", "Jitgcc.*lib", "Jitllvm.*lib"]
