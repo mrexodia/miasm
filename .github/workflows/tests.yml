@@ -3,7 +3,7 @@ name: Miasm regression tests
 on: [push, pull_request]
 
 jobs:
-  build:
+  linux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -100,3 +100,36 @@ jobs:
       run: cd "miasm-extended-tests/$MIASM_EXTENTED_TESTS_IR" && ./run.sh
       env:
         MIASM_EXTENTED_TESTS_IR: ir_tests
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ['3.13']
+
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v3
+
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Update pip
+      run: python -m pip install pip --upgrade
+      shell: bash
+
+    - name: Install LLVM/Clang
+      run: |
+        choco install llvm -y --no-progress
+        "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Install Miasm
+      uses: ./.github/actions/install
+
+    - name: Windows tests
+      run: cd test; python -W error test_all.py -t gcc && git ls-files -o --exclude-standard
+      shell: bash

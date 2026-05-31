@@ -1,6 +1,12 @@
-
 runs:
   using: "composite"
   steps:
-    - run: ${{ github.action_path }}/install.sh
+    - run: |
+        action_path="$ACTION_PATH"
+        if command -v cygpath >/dev/null 2>&1; then
+          action_path="$(cygpath -u "$action_path")"
+        fi
+        bash "$action_path/install.sh"
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
