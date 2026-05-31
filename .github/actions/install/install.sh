@@ -1,10 +1,14 @@
 #! /bin/bash
-
+set -euo pipefail
 
 # codespell
-pip install codespell
+python -m pip install codespell
+
+# Build local miasm-jit wheel so miasm[llvm] can resolve miasm-jit==<version>
+python -m pip wheel ./miasm-jit --no-deps -w .miasm-wheels
+
 # install
-python setup.py build build_ext
-python setup.py install
+python -m pip install --find-links .miasm-wheels '.[cparser,z3,llvm,test]'
+
 # extended tests
 git clone https://github.com/cea-sec/miasm-extended-tests

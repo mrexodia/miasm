@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.org/cea-sec/miasm.svg)](https://travis-ci.org/cea-sec/miasm)
-[![Build status](https://ci.appveyor.com/api/projects/status/g845jr23nt18uf29/branch/master?svg=true)](https://ci.appveyor.com/project/cea-sec/miasm)
 [![Miasm tests](https://github.com/cea-sec/miasm/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/cea-sec/miasm/actions/workflows/tests.yml?branch=master)
 [![Code Climate](https://codeclimate.com/github/cea-sec/miasm/badges/gpa.svg)](https://codeclimate.com/github/cea-sec/miasm)
 [![Join the chat at https://gitter.im/cea-sec/miasm](https://badges.gitter.im/cea-sec/miasm.svg)](https://gitter.im/cea-sec/miasm?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -533,17 +531,21 @@ Software requirements
 
 Miasm uses:
 
-* python-pyparsing
-* python-dev
-* optionally python-pycparser (version >= 2.17)
+* Python >= 3.10
+* pyparsing >= 2.4.1
+* optionally pycparser >= 2.17 (`pip install miasm[cparser]`)
 
-To enable code JIT, one of the following module is mandatory:
+The native jitter components are distributed separately as `miasm-jit` and can
+be installed with `pip install miasm[jit]`. Building `miasm-jit` from source
+requires Python development headers and a C compiler.
+
+To enable non-Python JIT backends, one of the following is mandatory:
 * GCC
 * Clang
-* LLVM with Numba llvmlite, see below
+* LLVM with Numba llvmlite (`pip install miasm[llvm]`), see below
 
-'optional' Miasm can also use:
-* Z3, the [Theorem Prover](https://github.com/Z3Prover/z3)
+Optional features can also use:
+* Z3, the [Theorem Prover](https://github.com/Z3Prover/z3) (`pip install miasm[z3]`)
 
 Configuration
 -------------
@@ -558,13 +560,16 @@ To use the jitter, GCC or LLVM is recommended
 * Build and install Miasm:
 ```pycon
 $ cd miasm_directory
-$ python setup.py build
-$ sudo python setup.py install
+$ python -m pip install .
 ```
 
-If something goes wrong during one of the jitter modules compilation, Miasm will
-skip the error and disable the corresponding module (see the compilation
-output).
+Optional dependencies can be installed with extras, for example:
+```pycon
+$ python -m pip install '.[cparser,z3,llvm]'
+```
+
+The base `miasm` package is pure Python. Native jitter install failures are
+isolated to the `miasm-jit` package.
 
 Windows & IDA
 -------------

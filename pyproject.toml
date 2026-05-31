@@ -1,3 +1,79 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
-build-backend = "setuptools.build_meta:__legacy__"
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "miasm"
+version = "0.1.5"
+description = "Machine code manipulation library"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = "GPL-2.0-only"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Fabrice Desclaux", email = "serpilliere@droid-corp.org" },
+]
+keywords = [
+  "reverse engineering",
+  "disassembler",
+  "emulator",
+  "symbolic execution",
+  "intermediate representation",
+  "assembler",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Disassemblers",
+]
+dependencies = [
+  "future",
+  "pyparsing>=2.4.1",
+]
+
+[project.optional-dependencies]
+jit = ["miasm-jit==0.1.5"]
+cparser = ["pycparser>=2.17"]
+z3 = ["z3-solver==4.16.0.0"]
+llvm = ["miasm-jit==0.1.5", "llvmlite==0.44.0"]
+graph = ["graphviz"]
+crypto = ["pycryptodome"]
+test = ["parameterized~=0.8.1"]
+all = [
+  "miasm-jit==0.1.5",
+  "pycparser>=2.17",
+  "z3-solver==4.16.0.0",
+  "llvmlite==0.44.0",
+  "graphviz",
+  "pycryptodome",
+  "parameterized~=0.8.1",
+]
+
+[project.urls]
+Homepage = "http://miasm.re"
+Repository = "https://github.com/cea-sec/miasm"
+Documentation = "http://miasm.re"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["miasm*"]
+exclude = ["miasm-jit*", "test*", "example*", "doc*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+miasm = [
+  "jitter/*.h",
+  "jitter/arch/*.h",
+  "runtime/*.h",
+  "VERSION",
+]
