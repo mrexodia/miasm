@@ -373,8 +373,9 @@ class ExprVisitorCallbackTopToBottom(ExprVisitorBase):
         self.callback = callback
 
     def visit(self, expr, *args, **kwargs):
-        if expr in self.cache:
-            return self.cache[expr]
+        ret = self.cache.get(expr)
+        if ret is not None:
+            return ret
         ret = self.visit_inner(expr, *args, **kwargs)
         self.cache[expr] = ret
         return ret
@@ -398,8 +399,9 @@ class ExprVisitorCallbackBottomToTop(ExprVisitorBase):
         self.callback = callback
 
     def visit(self, expr, *args, **kwargs):
-        if expr in self.cache:
-            return self.cache[expr]
+        ret = self.cache.get(expr)
+        if ret is not None:
+            return ret
         ret = self.visit_inner(expr, *args, **kwargs)
         self.cache[expr] = ret
         return ret
@@ -559,6 +561,10 @@ class Expr(object):
         return repr(self) == repr(other)
 
     def __ne__(self, other):
+        if self is other:
+            return False
+        if self.use_singleton:
+            return True
         return not self.__eq__(other)
 
     def __lt__(self, other):
@@ -1191,6 +1197,35 @@ class ExprMem(Expr):
         return True
 
 
+EXPROP_DIFF_SIZE_ALLOWED = frozenset((
+    "segm",
+    "FLAG_EQ_ADDWC", "FLAG_EQ_SUBWC",
+    "FLAG_SIGN_ADDWC", "FLAG_SIGN_SUBWC",
+    "FLAG_ADDWC_CF", "FLAG_ADDWC_OF",
+    "FLAG_SUBWC_CF", "FLAG_SUBWC_OF",
+))
+
+EXPROP_SIZE_1 = frozenset((
+    TOK_EQUAL, 'parity', 'fcom_c0', 'fcom_c1', 'fcom_c2', 'fcom_c3',
+    'fxam_c0', 'fxam_c1', 'fxam_c2', 'fxam_c3',
+    "access_segment_ok", "load_segment_limit_ok", "bcdadd_cf",
+    "ucomiss_zf", "ucomiss_pf", "ucomiss_cf",
+    "ucomisd_zf", "ucomisd_pf", "ucomisd_cf",
+    TOK_INF, TOK_INF_SIGNED, TOK_INF_UNSIGNED, TOK_INF_EQUAL,
+    TOK_INF_EQUAL_SIGNED, TOK_INF_EQUAL_UNSIGNED, TOK_POS,
+    TOK_POS_STRICT,
+    "FLAG_ADD_CF", "FLAG_SUB_CF",
+    "FLAG_ADD_OF", "FLAG_SUB_OF",
+    "FLAG_EQ", "FLAG_EQ_CMP",
+    "FLAG_SIGN_SUB", "FLAG_SIGN_ADD",
+    "FLAG_EQ_AND",
+    "FLAG_EQ_ADDWC", "FLAG_EQ_SUBWC",
+    "FLAG_SIGN_ADDWC", "FLAG_SIGN_SUBWC",
+    "FLAG_ADDWC_CF", "FLAG_ADDWC_OF",
+    "FLAG_SUBWC_CF", "FLAG_SUBWC_OF",
+))
+
+
 class ExprOp(Expr):
 
     """An ExprOp stand for an operation between Expr
@@ -1209,75 +1244,43 @@ class ExprOp(Expr):
         @*args: Expr, operand list
         """
 
-        # args must be Expr
-        assert all(isinstance(arg, Expr) for arg in args)
-
-        sizes = set([arg.size for arg in args])
-
-        if len(sizes) != 1:
-            # Special cases : operande sizes can differ
-            if op not in [
-                    "segm",
-                    "FLAG_EQ_ADDWC", "FLAG_EQ_SUBWC",
-                    "FLAG_SIGN_ADDWC", "FLAG_SIGN_SUBWC",
-                    "FLAG_ADDWC_CF", "FLAG_ADDWC_OF",
-                    "FLAG_SUBWC_CF", "FLAG_SUBWC_OF",
-
-            ]:
-                raise ValueError(
-                    "sanitycheck: ExprOp args must have same size! %s" %
-                    ([(str(arg), arg.size) for arg in args]))
-
         if not isinstance(op, str):
             raise ValueError("ExprOp: 'op' argument must be a string")
 
         assert isinstance(args, tuple)
         self._op, self._args = op, args
 
-        # Set size for special cases
-        if self._op in [
-                TOK_EQUAL, 'parity', 'fcom_c0', 'fcom_c1', 'fcom_c2', 'fcom_c3',
-                'fxam_c0', 'fxam_c1', 'fxam_c2', 'fxam_c3',
-                "access_segment_ok", "load_segment_limit_ok", "bcdadd_cf",
-                "ucomiss_zf", "ucomiss_pf", "ucomiss_cf",
-                "ucomisd_zf", "ucomisd_pf", "ucomisd_cf"]:
-            size = 1
-        elif self._op in [TOK_INF, TOK_INF_SIGNED,
-                           TOK_INF_UNSIGNED, TOK_INF_EQUAL,
-                           TOK_INF_EQUAL_SIGNED, TOK_INF_EQUAL_UNSIGNED,
-                           TOK_EQUAL, TOK_POS,
-                           TOK_POS_STRICT,
-                          ]:
-            size = 1
-        elif self._op.startswith("fp_to_sint"):
-            size = int(self._op[len("fp_to_sint"):])
-        elif self._op.startswith("fpconvert_fp"):
-            size = int(self._op[len("fpconvert_fp"):])
-        elif self._op in [
-                "FLAG_ADD_CF", "FLAG_SUB_CF",
-                "FLAG_ADD_OF", "FLAG_SUB_OF",
-                "FLAG_EQ", "FLAG_EQ_CMP",
-                "FLAG_SIGN_SUB", "FLAG_SIGN_ADD",
-                "FLAG_EQ_AND",
-                "FLAG_EQ_ADDWC", "FLAG_EQ_SUBWC",
-                "FLAG_SIGN_ADDWC", "FLAG_SIGN_SUBWC",
-                "FLAG_ADDWC_CF", "FLAG_ADDWC_OF",
-                "FLAG_SUBWC_CF", "FLAG_SUBWC_OF",
-        ]:
-            size = 1
+        # Fast path: nearly all integer ops have same-sized Expr arguments.
+        first_size = args[0].size if args else None
+        same_size = True
+        for arg in args:
+            assert isinstance(arg, Expr)
+            if arg.size != first_size:
+                same_size = False
+                break
 
-        elif self._op.startswith('signExt_'):
-            size = int(self._op[8:])
-        elif self._op.startswith('zeroExt_'):
-            size = int(self._op[8:])
-        elif self._op in ['segm']:
-            size = self._args[1].size
+        if not same_size and op not in EXPROP_DIFF_SIZE_ALLOWED:
+            raise ValueError(
+                "sanitycheck: ExprOp args must have same size! %s" %
+                ([(str(arg), arg.size) for arg in args]))
+
+        # Set size for special cases
+        if op in EXPROP_SIZE_1:
+            size = 1
+        elif op.startswith("fp_to_sint"):
+            size = int(op[len("fp_to_sint"):])
+        elif op.startswith("fpconvert_fp"):
+            size = int(op[len("fpconvert_fp"):])
+        elif op.startswith('signExt_'):
+            size = int(op[8:])
+        elif op.startswith('zeroExt_'):
+            size = int(op[8:])
+        elif op == 'segm':
+            size = args[1].size
+        elif same_size:
+            size = first_size
         else:
-            if None in sizes:
-                size = None
-            else:
-                # All arguments have the same size
-                size = list(sizes)[0]
+            size = None
 
         super(ExprOp, self).__init__(size)
 
@@ -1350,7 +1353,7 @@ class ExprOp(Expr):
     def is_op(self, op=None):
         if op is None:
             return True
-        return self.op == op
+        return self._op == op
 
     def is_op_segm(self):
         """Returns True if is ExprOp and op == 'segm'"""
