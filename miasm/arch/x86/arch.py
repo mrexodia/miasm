@@ -824,21 +824,32 @@ class mn_x86(cls_mn):
 
     @classmethod
     def get_cls_instance(cls, cc, mode, infos=None):
-        for opmode in [0, 1]:
-            for admode in [0, 1]:
-                c = cc()
-                c.init_class()
+        cache = cc.__dict__.get("_gci_cache")
+        if cache is None:
+            cache = []
+            for opmode in [0, 1]:
+                for admode in [0, 1]:
+                    c = cc()
+                    c.init_class()
+                    # Save original field lengths: encode() mutates f.l on
+                    # variable-length fields (rel_off, cond_imm, movoff, …)
+                    # but reset_class() only restores f.value.
+                    field_lengths = [f.l for f in c.fields_order]
+                    cache.append((opmode, admode, c, field_lengths))
+            cc._gci_cache = cache
+        for opmode, admode, c, field_lengths in cache:
+            c.reset_class()
+            for f, orig_l in zip(c.fields_order, field_lengths):
+                f.l = orig_l
+            c.add_pre_dis_info()
+            c.dup_info(infos)
+            c.mode = mode
+            c.opmode = opmode
+            c.admode = admode
 
-                c.reset_class()
-                c.add_pre_dis_info()
-                c.dup_info(infos)
-                c.mode = mode
-                c.opmode = opmode
-                c.admode = admode
-
-                if not hasattr(c, 'stk') and hasattr(c, "fopmode") and c.fopmode.mode == 64:
-                    c.rex_w.value = 1
-                yield c
+            if not hasattr(c, 'stk') and hasattr(c, "fopmode") and c.fopmode.mode == 64:
+                c.rex_w.value = 1
+            yield c
 
     def post_dis(self):
         if self.g2.value:
