@@ -1460,7 +1460,8 @@ class disasmEngine(object):
 
     def dis_instr(self, offset):
         """Disassemble one instruction at offset @offset and return the
-        corresponding instruction instance
+        corresponding instruction instance, or None if the bytes at @offset
+        cannot be decoded.
         @offset: targeted offset to disassemble
         """
         old_lineswd = self.lines_wd
@@ -1470,5 +1471,9 @@ class disasmEngine(object):
         finally:
             self.lines_wd = old_lineswd
 
+        # An undecodable @offset yields an empty block (dis_block logs
+        # "cannot disasm" and stops); return None rather than IndexError.
+        if not block.lines:
+            return None
         instr = block.lines[0]
         return instr
